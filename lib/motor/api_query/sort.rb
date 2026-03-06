@@ -52,8 +52,12 @@ module Motor
       end
 
       def maybe_add_null_last(model, arel_direction)
+        column_name = arel_direction.expr.name.to_s
+        column = model.columns_hash[column_name]
+
         if arel_direction.respond_to?(:nulls_last) &&
-           model.connection.class.name == 'ActiveRecord::ConnectionAdapters::PostgreSQLAdapter'
+           model.connection.class.name == 'ActiveRecord::ConnectionAdapters::PostgreSQLAdapter' &&
+           (column.nil? || column.null)
           arel_direction.nulls_last
         else
           arel_direction
