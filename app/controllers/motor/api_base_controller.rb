@@ -12,6 +12,10 @@ module Motor
     end
 
     unless Rails.env.test?
+      rescue_from ActiveModel::RangeError, RangeError do |e|
+        render json: { data: [], meta: { count: 0 } }, status: :ok
+      end
+
       rescue_from StandardError do |e|
         Rails.logger.error(e)
         Rails.logger.error(e.backtrace.join("\n"))

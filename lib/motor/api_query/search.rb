@@ -28,15 +28,16 @@ module Motor
 
       def build_arel_filters(model, column_names, keyword)
         arel_table = model.arel_table
+        numeric_keyword = keyword.match?(/\A-?\d+(\.\d+)?\z/) ? keyword.to_f : nil
 
-        column_names.map do |name|
-          column_type = model.columns_hash[name].type
+        column_names.filter_map do |name|
+          column_type = model.columns_hash[name]&.type
 
           if STRING_COLUMN_TYPES.include?(column_type)
             arel_table[name].matches("%#{keyword}%")
-          elsif NUMBER_COLUMN_TYPES.include?(column_type)
-            arel_table[name].eq(keyword.to_f)
-          else
+          elsif NUMBER_COLUMN_TYPES.include?(column_type) && numeric_keyword
+            arel_table[name].eq(numeric_keyword)
+          elsif !NUMBER_COLUMN_TYPES.include?(column_type)
             arel_table[name].eq(keyword)
           end
         end
