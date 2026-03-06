@@ -13,25 +13,7 @@ module Motor
 
         normalized_params = normalize_params(Array.wrap(params))
 
-        association_filters, direct_filters = extract_association_filters(rel.klass, normalized_params)
-
-        rel = rel.filter(direct_filters) if direct_filters.present?
-
-        association_filters.each do |assoc_name, column_filters|
-          reflection = rel.klass.reflections[assoc_name.to_s]
-          next unless reflection
-
-          rel = rel.left_joins(assoc_name.to_sym)
-
-          table = reflection.klass.arel_table
-
-          column_filters.each do |column, conditions|
-            conditions.each do |action, value|
-              rel = rel.where(build_arel_condition(table, column, action, value))
-            end
-          end
-        end
-
+        rel = rel.filter(normalized_params)
         rel = rel.distinct if can_apply_distinct?(rel)
 
         rel
@@ -52,64 +34,6 @@ module Motor
             end
           end
         end.split('OR').product(['OR']).flatten(1)[0...-1]
-      end
-
-      def extract_association_filters(model, params)
-        association_filters = {}
-        direct_filters = []
-
-        params.each do |item|
-          if item.is_a?(String)
-            direct_filters << item
-            next
-          end
-
-          if item.is_a?(Array)
-            nested_assoc, nested_direct = extract_association_filters(model, item)
-            association_filters.merge!(nested_assoc)
-            direct_filters << nested_direct if nested_direct.present?
-            next
-          end
-
-          direct_items = {}
-
-          item.each do |key, value|
-            if model.reflections.key?(key.to_s)
-              association_filters[key] = value
-            else
-              direct_items[key] = value
-            end
-          end
-
-          direct_filters << direct_items if direct_items.present?
-        end
-
-        [association_filters, direct_filters]
-      end
-
-      def build_arel_condition(table, column, action, value)
-        arel_column = table[column]
-
-        case action
-        when 'eq'
-          value.nil? ? arel_column.eq(nil) : arel_column.eq(value)
-        when 'neq'
-          value.nil? ? arel_column.not_eq(nil) : arel_column.not_eq(value)
-        when 'gt'
-          arel_column.gt(value)
-        when 'gte'
-          arel_column.gteq(value)
-        when 'lt'
-          arel_column.lt(value)
-        when 'lte'
-          arel_column.lteq(value)
-        when 'ilike'
-          arel_column.matches(value)
-        when 'contains'
-          arel_column.matches("%#{value}%")
-        else
-          arel_column.eq(value)
-        end
       end
 
       def normalize_filter_hash(hash)
